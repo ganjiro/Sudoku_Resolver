@@ -3,6 +3,7 @@ import math
 import random
 import itertools
 from math import trunc
+from timeit import Timer
 
 
 def LoadRandomSolvedSudoku():
@@ -69,6 +70,35 @@ def fowardChaining(puzzle, var):
         puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
         if not puzzle.domains[i][j]:
             return False
+    return True
+
+def MAC(puzzle, var):
+    queue = [[[var[0], i], [var[0], var[1]]] for i in range(0, 9)]
+    queue += [[[i, var[1]], [var[0], var[1]]] for i in range(0, 9)]
+    x = var[0] - var[0] % 3
+    y = var[1] - var[1] % 3
+    queue += [[[i, j], [var[0], var[1]]] for i, j in itertools.product(range(x, x + 3), range(y, y + 3))]
+    queue.sort()
+    queue = list(queue for queue, _ in itertools.groupby(queue))
+    for i, j in itertools.product(range(0, 9), range(0, 9)):
+        if [[i, j], [i, j]] in queue: queue.remove([[i, j], [i, j]])
+    while queue:
+        index = queue.pop(0)
+        if Revise(index, puzzle):
+            if not puzzle.domains[index[0][0]][index[0][1]]:
+                return False
+            newarcs = [[[index[0][0], index[0][1]], [index[0][0], k]] for k in range(0, 9)]
+            newarcs += [[[index[0][0], index[0][1]], [k, index[0][1]]] for k in range(0, 9)]
+            x = index[0][0] - index[0][0] % 3
+            y = index[0][1] - index[0][1] % 3
+            newarcs += [[[index[0][0], index[0][1]], [k, l]] for k, l in
+                        itertools.product(range(x, x + 3), range(y, y + 3))]
+            newarcs.sort()
+            newarcs = list(newarcs for newarcs, _ in itertools.groupby(newarcs))
+            for i, j in itertools.product(range(0, 9), range(0, 9)):
+                if [[i, j], [i, j]] in newarcs: newarcs.remove([[i, j], [i, j]])
+            newarcs.remove([[index[0][0], index[0][1]], [index[1][0], index[1][1]]])
+            queue += newarcs
     return True
 
 
@@ -145,21 +175,21 @@ class Sudoku:
         return zipped_lists
 
 
-def backTrackingSudokuMAC(sudoku,nIter):
+def backTrackingSudokuMAC(sudoku, nIter):
     if sudoku.isComplete(): return sudoku
     var = sudoku.getVariable()
     for val in sudoku.getOrder(var):
         sudokuTmp = copy.deepcopy(sudoku)
         if sudokuTmp.isConsistent(var, val):
             sudokuTmp.variables[var[0]][var[1]] = val
-        if ArcConsistency(sudokuTmp):
+        if MAC(sudokuTmp, var):
             result = backTrackingSudokuMAC(sudokuTmp, nIter+1)
             if result:
-                print(nIter)
+                #print(nIter)
                 return result
     return False
 
-def backTrackingSudokuFwdChaining(sudoku,nIter):
+def backTrackingSudokuFwdChaining(sudoku, nIter):
     if sudoku.isComplete(): return sudoku
     var = sudoku.getVariable()
     for val in sudoku.getOrder(var):
@@ -169,7 +199,7 @@ def backTrackingSudokuFwdChaining(sudoku,nIter):
         if fowardChaining(sudokuTmp, var):
             result = backTrackingSudokuFwdChaining(sudokuTmp, nIter+1)
             if result:
-                print(nIter)
+                #print(nIter)
                 return result
     return False
 
@@ -180,6 +210,9 @@ a = [[0, 0, 3, 0, 2, 0, 6, 0, 0], [9, 0, 0, 3, 0, 5, 0, 0, 1], [0, 0, 1, 8, 0, 6
      [7, 0, 0, 0, 0, 0, 0, 0, 8], [0, 0, 6, 7, 0, 8, 2, 0, 0], [0, 0, 2, 6, 0, 9, 5, 0, 0], [8, 0, 0, 2, 0, 3, 0, 0, 9],
      [0, 0, 5, 0, 1, 0, 3, 0, 0, ]]
 s = Sudoku(CreateSudoku(LoadRandomSolvedSudoku()))
-s1 = copy.deepcopy(s)
-print(backTrackingSudokuMAC(s,1).variables)
-print(backTrackingSudokuFwdChaining(s1, 1).variables)
+
+t = Timer(lambda: backTrackingSudokuMAC(s,1))
+print(t.timeit(number=1))
+t = Timer(lambda: backTrackingSudokuFwdChaining(s,1))
+print(t.timeit(number=1))
+
