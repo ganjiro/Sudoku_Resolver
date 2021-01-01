@@ -46,31 +46,31 @@ def ArcConsistency(puzzle):
     return True
 
 
-
 def Revise(index, puzzle):
     revised = False
-    for x in puzzle.domains[index[0][0]][index[0][1]]:
-        if x == puzzle.variables[index[1][0]][index[1][1]]:
-            puzzle.domains[index[0][0]][index[0][1]].remove(x)
-            revised = True
+    if index[1] != index[0]:
+        for x in puzzle.domains[index[0][0]][index[0][1]]:
+            if x == puzzle.variables[index[1][0]][index[1][1]]:
+                puzzle.domains[index[0][0]][index[0][1]].remove(x)
+                revised = True
     return revised
+
 
 def fowardChaining(puzzle, var):
     puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
     for i in range(0, 9):
         Revise([[var[0], i], [var[0], var[1]]], puzzle)
         Revise([[i, var[1]], [var[0], var[1]]], puzzle)
-        puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
         if not puzzle.domains[i][var[1]] or not puzzle.domains[var[0]][i]:
             return False
     x = var[0] - var[0] % 3
     y = var[1] - var[1] % 3
     for i, j in itertools.product(range(x, x + 3), range(y, y + 3)):
         Revise([[i, j], [var[0], var[1]]], puzzle)
-        puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
         if not puzzle.domains[i][j]:
             return False
     return True
+
 
 def MAC(puzzle, var):
     queue = [[[var[0], i], [var[0], var[1]]] for i in range(0, 9)]
@@ -109,7 +109,6 @@ class Sudoku:
         self.domains = self.createDomains()
         ArcConsistency(self)
 
-
     def isComplete(self):
         for i, j in itertools.product(range(0, 9), range(0, 9)):
             if self.variables[i][j] == 0:
@@ -137,7 +136,8 @@ class Sudoku:
         return domains
 
     def getVariable(self):
-        domainDimension = [len(self.domains[i][j]) if self.variables[i][j] == 0 else math.inf for i, j in itertools.product(range(0, 9), range(0, 9)) ]
+        domainDimension = [len(self.domains[i][j]) if self.variables[i][j] == 0 else math.inf for i, j in
+                           itertools.product(range(0, 9), range(0, 9))]
         vars = [i for i, x in enumerate(domainDimension) if x == min(domainDimension)]
         return [trunc(vars[0] / 9), vars[0] % 9]
 
@@ -158,24 +158,24 @@ class Sudoku:
         rating = [0 for _ in range(0, 10)]
         for i in range(0, 9):
             for k in self.domains[var[0]][i]:
-                    rating[k] += 1
+                rating[k] += 1
             for k in self.domains[i][var[1]]:
-                    rating[k] += 1
+                rating[k] += 1
         x = var[0] - var[0] % 3
         y = var[1] - var[1] % 3
         for i, j in itertools.product(range(x, x + 3), range(y, y + 3)):
             for k in self.domains[i][j]:
-                    rating[k] += 1
+                rating[k] += 1
         finalOrder = []
         for i in self.domains[var[0]][var[1]]:
             finalOrder.append(rating[i])
         zipped_lists = zip(finalOrder, self.domains[var[0]][var[1]])
-        sorted_zipped_lists = sorted(zipped_lists)
+        sorted_zipped_lists = sorted(zipped_lists, reverse=True)
         zipped_lists = [element for _, element in sorted_zipped_lists]
         return zipped_lists
 
 
-def backTrackingSudokuMAC(sudoku, nIter):
+def backTrackingSudokuMAC(sudoku):
     if sudoku.isComplete(): return sudoku
     var = sudoku.getVariable()
     for val in sudoku.getOrder(var):
@@ -183,13 +183,18 @@ def backTrackingSudokuMAC(sudoku, nIter):
         if sudokuTmp.isConsistent(var, val):
             sudokuTmp.variables[var[0]][var[1]] = val
         if MAC(sudokuTmp, var):
-            result = backTrackingSudokuMAC(sudokuTmp, nIter+1)
+            global nbackTrack
+            nbackTrack += 1
+            print(nbackTrack)
+            result = backTrackingSudokuMAC(sudokuTmp)
             if result:
-                #print(nIter)
                 return result
+
+
     return False
 
-def backTrackingSudokuFwdChaining(sudoku, nIter):
+
+def backTrackingSudokuFwdChaining(sudoku):
     if sudoku.isComplete(): return sudoku
     var = sudoku.getVariable()
     for val in sudoku.getOrder(var):
@@ -197,22 +202,27 @@ def backTrackingSudokuFwdChaining(sudoku, nIter):
         if sudokuTmp.isConsistent(var, val):
             sudokuTmp.variables[var[0]][var[1]] = val
         if fowardChaining(sudokuTmp, var):
-            result = backTrackingSudokuFwdChaining(sudokuTmp, nIter+1)
+            result = backTrackingSudokuFwdChaining(sudokuTmp)
             if result:
-                #print(nIter)
                 return result
+    global nbackTrack
+    nbackTrack += 1
     return False
 
 
+a = [[0, 0, 5, 2, 3, 0, 0, 6, 0], [8, 2, 9, 6, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 8, 0, 0, 0, 0, 0, 2],
+     [0, 0, 0, 7, 0, 9, 0, 0, 0], [3, 0, 0, 0, 0, 0, 4, 9, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [5, 0, 0, 0, 0, 4, 1, 3, 7],
+     [0, 6, 0, 0, 7, 5, 9, 0, 0]]
 
-
-a = [[0, 0, 3, 0, 2, 0, 6, 0, 0], [9, 0, 0, 3, 0, 5, 0, 0, 1], [0, 0, 1, 8, 0, 6, 4, 0, 0], [0, 0, 8, 1, 0, 2, 9, 0, 0],
-     [7, 0, 0, 0, 0, 0, 0, 0, 8], [0, 0, 6, 7, 0, 8, 2, 0, 0], [0, 0, 2, 6, 0, 9, 5, 0, 0], [8, 0, 0, 2, 0, 3, 0, 0, 9],
-     [0, 0, 5, 0, 1, 0, 3, 0, 0, ]]
+s = Sudoku(a)
+'''
 s = Sudoku(CreateSudoku(LoadRandomSolvedSudoku()))
-
-t = Timer(lambda: backTrackingSudokuMAC(s,1))
+'''
+nbackTrack = 0
+t = Timer(lambda: backTrackingSudokuMAC(s))
 print(t.timeit(number=1))
-t = Timer(lambda: backTrackingSudokuFwdChaining(s,1))
+print(nbackTrack)
+nbackTrack = 0
+t = Timer(lambda: backTrackingSudokuFwdChaining(s))
 print(t.timeit(number=1))
-
+print(nbackTrack)
