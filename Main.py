@@ -114,67 +114,34 @@ def Revise(x, y, puzzle):
 
 
 def FowardChaining(puzzle, var):
-    '''
-    global nFalseEuristic
-
-    for i in range(0, 9):
-        Revise([var[0], var[1]],[var[0], i], puzzle)
-        Revise([var[0], var[1]],[i, var[1]],  puzzle)
-        if not (puzzle.domains[i][var[1]] and puzzle.domains[var[0]][i]) \
-                or (puzzle.domains[var[0]][var[1]] == puzzle.domains[var[0]][i] and len(puzzle.domains[var[0]][i]) and var != [var[0],i])\
-                or (puzzle.domains[var[0]][var[1]] == puzzle.domains[i][var[1]] and len(puzzle.domains[i][var[1]]) and var != [i,var[1]]):
-            nFalseEuristic += 1
-            return False
-    x = var[0] - var[0] % 3
-    y = var[1] - var[1] % 3
-    for i, j in itertools.product(range(x, x + 3), range(y, y + 3)):
-        Revise([var[0], var[1]],[i, j],  puzzle)
-        if not puzzle.domains[i][j]:
-            nFalseEuristic += 1
-            return False
-    return True
-
-    puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
-    queue = [[[var[0], i], [var[0], var[1]]] for i in range(0, 9)]
-    queue += [[[i, var[1]], [var[0], var[1]]] for i in range(0, 9)]
-    x = var[0] - var[0] % 3
-    y = var[1] - var[1] % 3
-    queue += [[[i, j], [var[0], var[1]]] for i, j in itertools.product(range(x, x + 3), range(y, y + 3))]
-    queue.sort()
-    queue = list(queue for queue, _ in itertools.groupby(queue))
-    for i, j in itertools.product(range(0, 9), range(0, 9)):
-        if [[i, j], [i, j]] in queue: queue.remove([[i, j], [i, j]])
-    while queue:
-        index = queue.pop(0)
-        if Revise(index[1], index[0], puzzle):
-            if not puzzle.domains[index[0][0]][index[0][1]]:
-                global nFalseEuristic
-                nFalseEuristic += 1
-                return False
-    return True
-    '''
     global nFalseEuristic
     puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
     for i in range(0, 9):
-        if puzzle.domains[i][var[1]] == puzzle.domains[var[0]][var[1]] and [i, var[1]] != [var[0], var[1]]:
-            nFalseEuristic += 1
-            return False
-        if puzzle.domains[var[0]][i] == puzzle.domains[var[0]][var[1]] and [var[0], i] != [var[0], var[1]]:
-            nFalseEuristic += 1
-            return False
-        Revise([var[0], i], [var[0], var[1]], puzzle)
+        if i == var[0]: continue
         Revise([i, var[1]], [var[0], var[1]], puzzle)
+        if len(puzzle.domains[i][var[1]]) == 0:
+            nFalseEuristic += 1
+            return False
+    for i in range(0, 9):
+        if i == var[1]: continue
+        Revise([var[0], i], [var[0], var[1]], puzzle)
+        if len(puzzle.domains[var[0]][i]) == 0:
+            nFalseEuristic += 1
+            return False
     x = var[0] - var[0] % 3
     y = var[1] - var[1] % 3
     for i, j in itertools.product(range(x, x + 3), range(y, y + 3)):
-        if puzzle.domains[i][j] == puzzle.domains[var[0]][var[1]] and [i, j] != [var[0], var[1]]:
+        if [i, j] == var: continue
+        Revise([i, j], [var[0], var[1]], puzzle)
+        if len(puzzle.domains[i][j]) == 0:
             nFalseEuristic += 1
             return False
-        Revise([i, j], [var[0], var[1]], puzzle)
     return True
 
 
 def MAC(puzzle, var):
+    global nFalseEuristic
+    newarcs = []
     queue = [[[var[0], i], [var[0], var[1]]] for i in range(0, 9)]
     queue += [[[i, var[1]], [var[0], var[1]]] for i in range(0, 9)]
     x = var[0] - var[0] % 3
@@ -185,29 +152,35 @@ def MAC(puzzle, var):
     while queue:
         index = queue.pop(0)
         if Revise(index[0],index[1], puzzle):
-            if not puzzle.domains[index[0][0]][index[0][1]]: #or (len(puzzle.domains[index[0][0]][index[0][1]])==1 and puzzle.domains[index[0][0]][index[0][1]]== puzzle.domains[index[1][0]][index[1][1]]):
-                global nFalseEuristic
+            if not puzzle.domains[index[0][0]][index[0][1]]:
                 nFalseEuristic += 1
                 return False
-            newarcs = [[[index[0][0], index[0][1]], [index[0][0], k]] for k in range(0, 9)]
-            newarcs += [[[index[0][0], index[0][1]], [k, index[0][1]]] for k in range(0, 9)]
+            newarcs = [[[index[0][0], k], [index[0][0], index[0][1]]] for k in range(0, 9)]
+            newarcs += [[[k, index[0][1]], [index[0][0], index[0][1]]] for k in range(0, 9)]
             x = index[0][0] - index[0][0] % 3
             y = index[0][1] - index[0][1] % 3
-            newarcs += [[[index[0][0], index[0][1]], [k, l]] for k, l in
+            newarcs += [[[k, l],[index[0][0], index[0][1]]] for k, l in
                         itertools.product(range(x, x + 3), range(y, y + 3))]
             newarcs.sort()
             newarcs = list(newarcs for newarcs, _ in itertools.groupby(newarcs))
             for i, j in itertools.product(range(0, 9), range(0, 9)):
                 if [[i, j], [i, j]] in newarcs: newarcs.remove([[i, j], [i, j]])
-            newarcs.remove([[index[0][0], index[0][1]], [index[1][0], index[1][1]]])
-            queue += newarcs
+            newarcs.remove([[index[1][0], index[1][1]],[index[0][0], index[0][1]]])
+    while newarcs:
+        index = newarcs.pop(0)
+        if puzzle.domains[index[0][0]][index[0][1]] == puzzle.domains[index[1][0]][index[1][1]] and len(
+                puzzle.domains[index[1][0]][index[1][1]]) == 1:
+            nFalseEuristic += 1
+            return False
     return True
+
 
 class Sudoku:
     def __init__(self, puzzle):
         self.variables = puzzle
         self.costraints = self.CreateCostraints()
-        self.domains = self.CreateDomains()
+        self.domains = []
+        self.GetDomains()
 
     def IsComplete(self):
         for k, j in itertools.product(range(0, 9), range(0, 9)):
@@ -228,12 +201,23 @@ class Sudoku:
             if [[i, j], [i, j]] in costraints: costraints.remove([[i, j], [i, j]])
         return costraints
 
-    def CreateDomains(self):
+    def GetDomains(self):
         domains = [[[1, 2, 3, 4, 5, 6, 7, 8, 9] for _ in range(0, 9)] for _ in range(0, 9)]
         for i, j in itertools.product(range(0, 9), range(0, 9)):
             if self.variables[i][j] != 0:
                 domains[i][j] = [self.variables[i][j]]
-        return domains
+                for k in range(0,9):
+                    if k==j: continue
+                    if self.variables[i][j] in domains[i][k]: domains[i][k].remove(self.variables[i][j])
+                for k in range(0, 9):
+                    if k == i: continue
+                    if self.variables[i][j] in domains[k][j]: domains[k][j].remove(self.variables[i][j])
+                x = i - i % 3
+                y = j - j % 3
+                for n, m in itertools.product(range(x, x + 3), range(y, y + 3)):
+                    if [n, m] == [i, j]: continue
+                    if self.variables[i][j] in domains[n][m]: domains[n][m].remove(self.variables[i][j])
+        self.domains = domains
 
     def GetVariable(self):
         domainDimension = [len(self.domains[i][j]) if self.variables[i][j] == 0 else math.inf for i, j in
@@ -316,25 +300,25 @@ a = [[0, 4, 0, 0, 0, 0, 0, 0, 0], [6, 0, 7, 0, 0, 0, 8, 1, 0], [9, 0, 0, 6, 0, 0
 c = [[0, 0, 5, 2, 3, 0, 0, 6, 0], [8, 2, 9, 6, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 8, 0, 0, 0, 0, 0, 2],
      [0, 0, 0, 7, 0, 9, 0, 0, 0], [3, 0, 0, 0, 0, 0, 4, 9, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [5, 0, 0, 0, 0, 4, 1, 3, 7],
      [0, 6, 0, 0, 7, 5, 9, 0, 0]]
+for i in range(0, 20):
+    s = Sudoku(RandomCellElimination(CreateRandomSolvedSudoku())) #
+    print('Found!')
+    s1 = copy.deepcopy(s)
 
-s = Sudoku(a) #GenerateEvilPuzzle(CreateRandomSolvedSudoku())
-print('Found!')
-s1 = copy.deepcopy(s)
+    nbackTrack = 0
+    nFalseEuristic = 0
+    t = Timer(lambda: BackTrackingSudokuFwdChaining(s1))
+    print('Tempo itr {} Fwd: {}'.format(i,t.timeit(number=1)))
+    print('Numero di Backtrack: {}'.format(nbackTrack))
+    print('Numero di False: {}'.format(nFalseEuristic))
 
-nbackTrack = 0
-nFalseEuristic = 0
-t = Timer(lambda: BackTrackingSudokuFwdChaining(s1))
-print(t.timeit(number=1))
-print(nbackTrack)
-print(nFalseEuristic)
-print(BackTrackingSudokuFwdChaining(s1))
 
-nbackTrack = 0
-nFalseEuristic = 0
-t = Timer(lambda: BackTrackingSudokuMAC(s))            
-print(t.timeit(number=1))
-print(nbackTrack)
-print(nFalseEuristic)
-print(BackTrackingSudokuMAC(s).variables)
+    nbackTrack = 0
+    nFalseEuristic = 0
+    t = Timer(lambda: BackTrackingSudokuMAC(s))
+    print('Tempo itr {} MAC: {}'.format(i,t.timeit(number=1)))
+    print('Numero di Backtrack: {}'.format(nbackTrack))
+    print('Numero di False: {}'.format(nFalseEuristic))
+
 
 
