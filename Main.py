@@ -8,13 +8,7 @@ from random import sample
 import requests
 
 
-
-
-def LoadRandomSolvedSudoku():
-    f = open("SolvedSudoku.txt", "r")
-    for i in range(1, random.randint(0, 9998)):
-        f.readline()
-    sudokuLine = f.readline()
+def LoadRandomSolvedSudoku(sudokuLine):
     sudoku = []
     for i in range(0, 9):
         sudoku.append(list(map(int, sudokuLine[9 * i:9 * (i + 1)])))
@@ -40,12 +34,12 @@ def ToThonkyNotation(sudoku):
             output += str(sudoku[i][j])
 
     output = output.replace('0', '.')
-
     return output
 
 
-def GenerateEvilPuzzle(sudokuMatrix):
-    n=0
+def GeneratePuzzle(difficulty):
+    sudokuMatrix=CreateRandomSolvedSudoku()
+    n = 0
     while True:
         n+=1
         randomSudoku = copy.deepcopy(sudokuMatrix)
@@ -53,8 +47,14 @@ def GenerateEvilPuzzle(sudokuMatrix):
         url = requests.get('https://www.thonky.com/sudoku/evaluate-sudoku?puzzlebox='+ToThonkyNotation(randomSudoku))
         hmtlText = url.text
         score = hmtlText[hmtlText.find('Difficulty Score:') + 18:hmtlText.find('Difficulty Score:') + 19]
-        if score.isdigit() and int(score) > 4:
+        if score.isdigit() and int(score) == difficulty:
             return randomSudoku
+
+
+def SaveSudokuToFile(sudoku):
+    f = open("puzzle.txt", "a")
+    print(''.join([str(sudoku[i][j]) for i, j in itertools.product(range(0, 9), range(0, 9))]), file=f)
+    f.close()
 
 
 def DeleteCell(sudoku, nCells):
@@ -81,12 +81,13 @@ def DeleteCell(sudoku, nCells):
     return sudoku
 
 
-def ArcConsistency(puzzle):
-    queue = copy.deepcopy(puzzle.costraints)
+def ArcConsistency(puzzle,queue): #todo Levarla
+    global nFalseEuristic
     while queue:
         index = queue.pop(0)
-        if Revise(index, puzzle):
+        if Revise(index[0], index[1], puzzle):
             if not puzzle.domains[index[0][0]][index[0][1]]:
+                nFalseEuristic += 1
                 return False
             newarcs = [[[index[0][0], index[0][1]], [index[0][0], k]] for k in range(0, 9)]
             newarcs += [[[index[0][0], index[0][1]], [k, index[0][1]]] for k in range(0, 9)]
@@ -115,28 +116,31 @@ def Revise(x, y, puzzle):
 
 def FowardChaining(puzzle, var):
     global nFalseEuristic
-    puzzle.domains[var[0]][var[1]] = [puzzle.variables[var[0]][var[1]]]
-    for i in range(0, 9):
-        if i == var[0]: continue
-        Revise([i, var[1]], [var[0], var[1]], puzzle)
-        if len(puzzle.domains[i][var[1]]) == 0:
-            nFalseEuristic += 1
-            return False
-    for i in range(0, 9):
-        if i == var[1]: continue
-        Revise([var[0], i], [var[0], var[1]], puzzle)
-        if len(puzzle.domains[var[0]][i]) == 0:
-            nFalseEuristic += 1
-            return False
+    queue = [[[var[0], i], [var[0], var[1]]] for i in range(0, 9)]
+    queue += [[[i, var[1]], [var[0], var[1]]] for i in range(0, 9)]
     x = var[0] - var[0] % 3
     y = var[1] - var[1] % 3
-    for i, j in itertools.product(range(x, x + 3), range(y, y + 3)):
-        if [i, j] == var: continue
-        Revise([i, j], [var[0], var[1]], puzzle)
-        if len(puzzle.domains[i][j]) == 0:
-            nFalseEuristic += 1
-            return False
+    queue += [[[i, j], [var[0], var[1]]] for i, j in itertools.product(range(x, x + 3), range(y, y + 3))]
+    for i, j in itertools.product(range(0, 9), range(0, 9)):
+        if [[i, j], [i, j]] in queue: queue.remove([[i, j], [i, j]])
+    while queue:
+        index = queue.pop(0)
+        if Revise(index[0], index[1], puzzle):
+            if not puzzle.domains[index[0][0]][index[0][1]]:
+                nFalseEuristic += 1
+                return False
     return True
+
+
+def MAC2(puzzle, var):#todo levarla
+    queue = [[[var[0], i], [var[0], var[1]]] for i in range(0, 9)]
+    queue += [[[i, var[1]], [var[0], var[1]]] for i in range(0, 9)]
+    x = var[0] - var[0] % 3
+    y = var[1] - var[1] % 3
+    queue += [[[i, j], [var[0], var[1]]] for i, j in itertools.product(range(x, x + 3), range(y, y + 3))]
+    for i, j in itertools.product(range(0, 9), range(0, 9)):
+        if [[i, j], [i, j]] in queue: queue.remove([[i, j], [i, j]])
+    return ArcConsistency(puzzle, queue)
 
 
 def MAC(puzzle, var):
@@ -178,9 +182,9 @@ def MAC(puzzle, var):
 class Sudoku:
     def __init__(self, puzzle):
         self.variables = puzzle
-        self.costraints = self.CreateCostraints()
+        self.costraints = self.CreateCostraints() #todo levarla
         self.domains = []
-        self.GetDomains()
+        self.GetDomain()
 
     def IsComplete(self):
         for k, j in itertools.product(range(0, 9), range(0, 9)):
@@ -188,7 +192,7 @@ class Sudoku:
                 return False
         return True
 
-    def CreateCostraints(self):
+    def CreateCostraints(self):  #todo levarla
         costraints = []
         costraints += [[[i, j], [i, k]] for i, j, k in itertools.product(range(0, 9), range(0, 9), range(0, 9))]
         costraints += [[[i, j], [k, j]] for i, j, k in itertools.product(range(0, 9), range(0, 9), range(0, 9))]
@@ -201,13 +205,13 @@ class Sudoku:
             if [[i, j], [i, j]] in costraints: costraints.remove([[i, j], [i, j]])
         return costraints
 
-    def GetDomains(self):
+    def GetDomain(self):
         domains = [[[1, 2, 3, 4, 5, 6, 7, 8, 9] for _ in range(0, 9)] for _ in range(0, 9)]
         for i, j in itertools.product(range(0, 9), range(0, 9)):
             if self.variables[i][j] != 0:
                 domains[i][j] = [self.variables[i][j]]
                 for k in range(0,9):
-                    if k==j: continue
+                    if k == j: continue
                     if self.variables[i][j] in domains[i][k]: domains[i][k].remove(self.variables[i][j])
                 for k in range(0, 9):
                     if k == i: continue
@@ -238,7 +242,10 @@ class Sudoku:
                 return False
         return True
 
-    def GetOrder(self, var):
+    def GetOrder1(self, var):
+        return copy.deepcopy(self.domains[var[0]][var[1]])
+
+    def GetOrder2(self, var):
         rating = [0 for _ in range(0, 10)]
         for i in range(0, 9):
             for k in self.domains[var[0]][i]:
@@ -254,6 +261,29 @@ class Sudoku:
         for i in self.domains[var[0]][var[1]]:
             finalOrder.append(rating[i])
         zipped_lists = zip(finalOrder, self.domains[var[0]][var[1]])
+        sorted_zipped_lists = sorted(zipped_lists)
+        zipped_lists = [element for _, element in sorted_zipped_lists]
+        return zipped_lists
+
+    def GetOrder3(self, var):
+        rating = [1 for _ in range(0, 10)]
+        for i in range(0, 9):
+            for k in self.domains[var[0]][i]:
+                rating[k] *= len(self.domains[var[0]][i])-1
+            for k in self.domains[i][var[1]]:
+                rating[k] *= len(self.domains[i][var[1]])-1
+        x = var[0] - var[0] % 3
+        y = var[1] - var[1] % 3
+        for i, j in itertools.product(range(x, x + 3), range(y, y + 3)):
+            for k in self.domains[i][j]:
+                rating[k] *= len(self.domains[i][j])-1
+        for k in range(0, 10):
+            if rating[k] == 1: rating[k] = math.inf
+        finalOrder = []
+        for i in self.domains[var[0]][var[1]]:
+            finalOrder.append(rating[i])
+
+        zipped_lists = zip(finalOrder, self.domains[var[0]][var[1]])
         sorted_zipped_lists = sorted(zipped_lists, reverse=True)
         zipped_lists = [element for _, element in sorted_zipped_lists]
         return zipped_lists
@@ -262,7 +292,7 @@ class Sudoku:
 def BackTrackingSudokuMAC(sudoku):
     if sudoku.IsComplete(): return sudoku
     var = sudoku.GetVariable()
-    for val in sudoku.GetOrder(var):
+    for val in sudoku.GetOrder3(var):
         if sudoku.IsConsistent(var, val):
             sudoku.variables[var[0]][var[1]] = val
             domainBacktrack = copy.deepcopy(sudoku.domains)
@@ -280,7 +310,7 @@ def BackTrackingSudokuMAC(sudoku):
 def BackTrackingSudokuFwdChaining(sudoku):
     if sudoku.IsComplete(): return sudoku
     var = sudoku.GetVariable()
-    for val in sudoku.GetOrder(var):
+    for val in sudoku.GetOrder3(var):
         if sudoku.IsConsistent(var, val):
             sudoku.variables[var[0]][var[1]] = val
             domainBacktrack = copy.deepcopy(sudoku.domains)
@@ -296,14 +326,34 @@ def BackTrackingSudokuFwdChaining(sudoku):
 
 
 
-a = [[0, 4, 0, 0, 0, 0, 0, 0, 0], [6, 0, 7, 0, 0, 0, 8, 1, 0], [9, 0, 0, 6, 0, 0, 2, 0, 0], [0, 9, 0, 0, 4, 0, 0, 0, 0], [0, 6, 0, 8, 0, 3, 5, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 2], [0, 0, 3, 5, 0, 8, 0, 0, 4], [0, 7, 0, 0, 0, 2, 9, 0, 5], [5, 0, 0, 0, 0, 0, 3, 0, 0]]
-c = [[0, 0, 5, 2, 3, 0, 0, 6, 0], [8, 2, 9, 6, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 8, 0, 0, 0, 0, 0, 2],
-     [0, 0, 0, 7, 0, 9, 0, 0, 0], [3, 0, 0, 0, 0, 0, 4, 9, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [5, 0, 0, 0, 0, 4, 1, 3, 7],
-     [0, 6, 0, 0, 7, 5, 9, 0, 0]]
+def BackTrackingSudoku(sudoku):
+    if sudoku.IsComplete(): return sudoku
+    var = sudoku.GetVariable()
+    for val in sudoku.GetOrder3(var):
+        if sudoku.IsConsistent(var, val):
+            sudoku.variables[var[0]][var[1]] = val
+            domainBacktrack = copy.deepcopy(sudoku.domains)
+            result = BackTrackingSudokuFwdChaining(sudoku)
+            if result:
+                return result
+            sudoku.domains = domainBacktrack
+            global nbackTrack
+            nbackTrack += 1
+            sudoku.variables[var[0]][var[1]] = 0
+    return False
+
+
+f = open("puzzle.txt", "r")
+f.readline()
+
 for i in range(0, 20):
-    s = Sudoku(RandomCellElimination(CreateRandomSolvedSudoku())) #
+
+
+    s = Sudoku(LoadRandomSolvedSudoku(f.readline())) #
     print('Found!')
     s1 = copy.deepcopy(s)
+    s3 = copy.deepcopy(s)
+    s2 = copy.deepcopy(s)
 
     nbackTrack = 0
     nFalseEuristic = 0
@@ -311,7 +361,7 @@ for i in range(0, 20):
     print('Tempo itr {} Fwd: {}'.format(i,t.timeit(number=1)))
     print('Numero di Backtrack: {}'.format(nbackTrack))
     print('Numero di False: {}'.format(nFalseEuristic))
-
+    print('Fwd: {}'.format(BackTrackingSudokuFwdChaining(s2)))
 
     nbackTrack = 0
     nFalseEuristic = 0
@@ -319,6 +369,7 @@ for i in range(0, 20):
     print('Tempo itr {} MAC: {}'.format(i,t.timeit(number=1)))
     print('Numero di Backtrack: {}'.format(nbackTrack))
     print('Numero di False: {}'.format(nFalseEuristic))
+    print('MAC: {}'.format(BackTrackingSudokuMAC(s3)))
 
-
+f.close()
 
