@@ -1,0 +1,114 @@
+
+def BackTrackingSudokuMAC1(sudoku):
+    if sudoku.IsComplete(): return sudoku
+    var = sudoku.GetVariableMRV()
+    for val in sudoku.SortDomain1(var):
+        if sudoku.IsConsistent(var, val):
+            sudoku.variables[var[0]][var[1]] = val
+            domainBacktrack = copy.deepcopy(sudoku.domains)
+            if sudoku.MAC(var):
+                result = BackTrackingSudokuMAC1(sudoku)
+                if result:
+                    return result
+            sudoku.domains = domainBacktrack
+            global nbackTrack
+            nbackTrack += 1
+            sudoku.variables[var[0]][var[1]] = 0
+    return False
+
+
+def BackTrackingSudokuMAC2(sudoku):
+    if sudoku.IsComplete(): return sudoku
+    var = sudoku.GetVariableMRV()
+    for val in sudoku.SortDomain2(var):
+        if sudoku.IsConsistent(var, val):
+            sudoku.variables[var[0]][var[1]] = val
+            domainBacktrack = copy.deepcopy(sudoku.domains)
+            if sudoku.MAC(var):
+                result = BackTrackingSudokuMAC2(sudoku)
+                if result:
+                    return result
+            sudoku.domains = domainBacktrack
+            global nbackTrack
+            nbackTrack += 1
+            sudoku.variables[var[0]][var[1]] = 0
+    return False
+
+
+def BackTrackingSudokuMAC3(sudoku):
+    if sudoku.IsComplete(): return sudoku
+    var = sudoku.GetVariableMRV()
+    for val in sudoku.SortDomain3(var):
+        if sudoku.IsConsistent(var, val):
+            sudoku.variables[var[0]][var[1]] = val
+            domainBacktrack = copy.deepcopy(sudoku.domains)
+            if sudoku.MAC(var):
+                result = BackTrackingSudokuMAC3(sudoku)
+                if result:
+                    return result
+            sudoku.domains = domainBacktrack
+            global nbackTrack
+            nbackTrack += 1
+            sudoku.variables[var[0]][var[1]] = 0
+    return False
+
+def Test1():
+    f = open("puzzle.txt", "r")
+
+    global nbackTrack, nFalseInference
+    nTest = 100
+    totalInference = [0 for _ in range(0, 3)]
+    totalBacktrack = [0 for _ in range(0, 3)]
+    totalTime = [0 for _ in range(0, 3)]
+
+    for i in range(0, nTest):
+        s = Sudoku(StringToMatrix(f.readline()))
+        s1 = copy.deepcopy(s)
+        s2 = copy.deepcopy(s)
+
+        nbackTrack = 0
+        nFalseInference = 0
+        t = Timer(lambda: BackTrackingSudokuMAC1(s))
+        totalTime[0] += t.timeit(number=1)
+        totalInference[0] += nFalseInference
+        totalBacktrack[0] += nbackTrack
+
+        nbackTrack = 0
+        nFalseInference = 0
+        t = Timer(lambda: BackTrackingSudokuMAC2(s1))
+        totalTime[1] += t.timeit(number=1)
+        totalInference[1] += nFalseInference
+        totalBacktrack[1] += nbackTrack
+
+        nbackTrack = 0
+        nFalseInference = 0
+        t = Timer(lambda: BackTrackingSudokuMAC3(s2))
+        totalTime[2] += t.timeit(number=1)
+        totalInference[2] += nFalseInference
+        totalBacktrack[2] += nbackTrack
+
+    f.close()
+
+    avgInference = [i / nTest for i in totalInference]
+    avgTime = [i / nTest for i in totalTime]
+    avgBacktrack = [i / nTest for i in totalBacktrack]
+
+    label = ['Sorting 1', 'Sorting 2', 'Sorting 3']
+    plt.figure(figsize=(9, 3))
+
+    plt.subplot(131)
+    plt.bar(label, avgInference)
+    plt.title('N° Cut off By Inference ')
+    plt.margins(x=0, y=+0.25)
+    plt.subplot(132)
+    plt.bar(label, avgTime)
+    plt.title('Execution Time')
+    plt.margins(x=0, y=+0.25)
+    plt.subplot(133)
+    plt.bar(label, avgBacktrack)
+    plt.title('N° Backtrack')
+    plt.margins(x=0, y=+0.25)
+    plt.rcParams.update({'font.size': 20})
+    plt.savefig('SortingComparison.png')
+    plt.close()
+
