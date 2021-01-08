@@ -1,4 +1,3 @@
-
 def BackTrackingSudokuMAC1(sudoku):
     if sudoku.IsComplete(): return sudoku
     var = sudoku.GetVariableMRV()
@@ -51,6 +50,7 @@ def BackTrackingSudokuMAC3(sudoku):
             nbackTrack += 1
             sudoku.variables[var[0]][var[1]] = 0
     return False
+
 
 def Test1():
     f = open("puzzle.txt", "r")
@@ -111,4 +111,3 @@ def Test1():
     plt.rcParams.update({'font.size': 20})
     plt.savefig('SortingComparison.png')
     plt.close()
-

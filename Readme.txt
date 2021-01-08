@@ -10,6 +10,7 @@ Per eseguire il test sull'ordinamento delle variabili bisogna aggiungere il codi
         //Ho scelto di tenere questo test separato in modo da rendere il codice più ordinato, considerando che
          non è il focus del progetto
 
+Per generare
 
 Materiale per la creazione del sudoku risolto:
 - https://stackoverflow.com/questions/45471152/how-to-create-a-sudoku-puzzle-in-python

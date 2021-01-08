@@ -38,7 +38,7 @@ def GenerateRandomSudoku():
     :return: matrice 9x9
     """
     solvedSudoku = CreateRandomSolvedSudoku()
-    nCells = random.randint(55, 65)
+    nCells = random.randint(45, 55)
     return DeleteCell(solvedSudoku, nCells)
 
 
@@ -332,13 +332,30 @@ class Sudoku:
 
     def SortDomain3(self, var):
         """
-          ordina la lista in maniera casuale
+          ordina in base al Less Costraining Value
           :param var: indici del dominio da assegnare
           :return: lista ordinata del domino
         """
-        a = copy.deepcopy(self.domains[var[0]][var[1]])
-        random.shuffle(a)
-        return a
+        score = [1 for _ in range(0, 10)]
+        queue = [[var[0], i] for i in range(0, 9)]
+        queue += [[i, var[1]] for i in range(0, 9)]
+        x = var[0] - var[0] % 3
+        y = var[1] - var[1] % 3
+        queue += [[i, j] for i, j in itertools.product(range(x, x + 3), range(y, y + 3)) if i != var[0] and j != var[1]]
+        queue.remove(var)
+        queue.remove(var)
+        while queue:
+            index = queue.pop()
+            for k in range(1, 10):
+                score[k] *= len(self.domains[index[0]][index[1]]) - 1 if k in self.domains[index[0]][index[1]] else len(
+                    self.domains[index[0]][index[1]])
+        finalOrder = []
+        for i in self.domains[var[0]][var[1]]:
+            finalOrder.append(score[i])
+        zipped_lists = zip(finalOrder, self.domains[var[0]][var[1]])
+        sorted_zipped_lists = sorted(zipped_lists, reverse=True)
+        zipped_lists = [element for _, element in sorted_zipped_lists]
+        return zipped_lists
 
     def FowardChaining(self, var):
         """
@@ -418,8 +435,9 @@ class Sudoku:
 
 
 def main():
-    Test(2, 20)
-
+    Test(1, 30)
 
 if __name__ == "__main__":
     main()
+
+
