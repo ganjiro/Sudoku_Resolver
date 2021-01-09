@@ -1,3 +1,4 @@
+
 def BackTrackingSudokuMAC1(sudoku):
     if sudoku.IsComplete(): return sudoku
     var = sudoku.GetVariableMRV()
@@ -52,11 +53,11 @@ def BackTrackingSudokuMAC3(sudoku):
     return False
 
 
-def Test1():
+def TestSorting():
     f = open("puzzle.txt", "r")
 
     global nbackTrack, nFalseInference
-    nTest = 100
+    nTest = 300
     totalInference = [0 for _ in range(0, 3)]
     totalBacktrack = [0 for _ in range(0, 3)]
     totalTime = [0 for _ in range(0, 3)]

@@ -23,7 +23,7 @@ def StringToMatrix(sudokuLine):
 
 def CreateRandomSolvedSudoku():
     """
-    Crea una Matrice 9x9 che rispetta le regole del sudoku
+    Crea una Matrice 9x9 completa che rispetta le regole del sudoku
     :return: matrice 9x9
     """
     rows = [g * 3 + r for g in sample(range(3), 3) for r in sample(range(3), 3)]
@@ -34,11 +34,11 @@ def CreateRandomSolvedSudoku():
 
 def GenerateRandomSudoku():
     """
-    Crea un sudoku con tra 55 a 65 celle vuote con una sola soluzione
+    Crea un sudoku con tra 55 e 65 celle vuote con una sola soluzione
     :return: matrice 9x9
     """
     solvedSudoku = CreateRandomSolvedSudoku()
-    nCells = random.randint(45, 55)
+    nCells = random.randint(55, 65)
     return DeleteCell(solvedSudoku, nCells)
 
 
@@ -61,16 +61,16 @@ def GeneratePuzzle(difficulty):
     """
     Genera un puzzle con un grado di difficolta da 1 a 6, la valutazione della difficolta è rimandata al sito thonky il
     quale prende come parametro il sudoku nella sua notazione.
+    Se in input viene dato 0 genera un sudoku di difficoltà casuale.
     :param difficulty:
     :return: matrice 9x9
     """
-    n = 0
+    if difficulty < 1:
+        return GenerateRandomSudoku()
+    elif difficulty > 6:
+        difficulty = 6
     while True:
-        if difficulty < 1:
-            difficulty = 1
-        elif difficulty > 6:
-            difficulty = 6
-        n += 1
+
         randomSudoku = GenerateRandomSudoku()
         url = requests.get('https://www.thonky.com/sudoku/evaluate-sudoku?puzzlebox=' + ToThonkyNotation(randomSudoku))
         hmtlText = url.text
@@ -124,7 +124,7 @@ def BackTrackingSudokuMAC(sudoku):
     """
     Risolve il sudoku con backtraking usando MAC
     :param sudoku: class Sudoku
-    :return: False se non risolvibile else la matrice del sudoku risolto
+    :return: False se non risolvibile else il sudoku risolto
     """
     if sudoku.IsComplete(): return sudoku
     var = sudoku.GetVariableMRV()
@@ -147,7 +147,7 @@ def BackTrackingSudokuFwdChaining(sudoku):
     """
     Risolve il sudoku con backtraking usando Forward Checking
     :param sudoku: class Sudoku
-    :return: False se non risolvibile else la matrice del sudoku risolto
+    :return: False se non risolvibile else il sudoku risolto
     """
     if sudoku.IsComplete(): return sudoku
     var = sudoku.GetVariableMRV()
@@ -181,8 +181,8 @@ def Test(difficulty, nTest):
     else:
         f = open("puzzle" + str(difficulty) + ".txt", "r")
         output = "Diff" + str(difficulty) + "SudokuComparison.png"
-        if nTest > 30:
-            nTest = 30
+        if nTest > 50:
+            nTest = 50
 
     totalBacktrack = [0 for _ in range(0, 2)]
     totalTime = [0 for _ in range(0, 2)]
@@ -280,6 +280,12 @@ class Sudoku:
         return notAssigned[random.randint(0, len(notAssigned)) - 1]
 
     def IsConsistent(self, var, val):
+        """
+        Controlla se il valore rispetta i vincoli
+        :param var:
+        :param val:
+        :return: true se rispetta else false
+        """
         for i in range(0, 9):
             if self.variables[var[0]][i] == val:
                 return False
@@ -302,7 +308,7 @@ class Sudoku:
 
     def SortDomain2(self, var):
         """
-        Conta il numero di occorrenza di ogni valore nel dominio dei vicini(occurrences) e ordina il domino della var
+        Conta il numero di occorrenze di ogni valore nel dominio dei vicini e ordina il domino della var
         considerata in ordine crescente rispetto ad occurrences
         :param var: indici del dominio da assegnare
         :return: lista ordinata del domino
@@ -332,7 +338,7 @@ class Sudoku:
 
     def SortDomain3(self, var):
         """
-          ordina in base al Less Costraining Value
+          ordina in base al Less Costraining Value con somma
           :param var: indici del dominio da assegnare
           :return: lista ordinata del domino
         """
@@ -347,7 +353,7 @@ class Sudoku:
         while queue:
             index = queue.pop()
             for k in range(1, 10):
-                score[k] *= len(self.domains[index[0]][index[1]]) - 1 if k in self.domains[index[0]][index[1]] else len(
+                score[k] += len(self.domains[index[0]][index[1]]) - 1 if k in self.domains[index[0]][index[1]] else len(
                     self.domains[index[0]][index[1]])
         finalOrder = []
         for i in self.domains[var[0]][var[1]]:
@@ -434,10 +440,10 @@ class Sudoku:
         return revised
 
 
+
 def main():
-    Test(1, 30)
+    Test(0, 300)
+
 
 if __name__ == "__main__":
     main()
-
-
